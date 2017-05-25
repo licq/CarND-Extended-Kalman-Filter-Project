@@ -23,7 +23,9 @@ void KalmanFilter::Predict() {
     P_ = F_ * P_ * Ft + Q_;
 }
 
-void KalmanFilter::UpdateWithZPred(const VectorXd &z, const VectorXd &z_pred) {
+void KalmanFilter::Update(const VectorXd &z) {
+    VectorXd z_pred = H_ * x_;
+
     VectorXd y = z - z_pred;
     MatrixXd Ht = H_.transpose();
     MatrixXd S = H_ * P_ * Ht + R_;
@@ -36,9 +38,13 @@ void KalmanFilter::UpdateWithZPred(const VectorXd &z, const VectorXd &z_pred) {
     P_ = (I - K * H_) * P_;
 }
 
-void KalmanFilter::Update(const VectorXd &z) {
-    VectorXd z_pred = H_ * x_;
-    UpdateWithZPred(z, z_pred);
+float normalizePhi(float phi){
+    if (phi < - M_PI){
+        phi = phi + 2 * M_PI;
+    }else if (phi > M_PI){
+        phi = phi - 2 * M_PI;
+    }
+    return phi;
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -47,18 +53,28 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     float vx = x_(2);
     float vy = x_(3);
 
-    float ro = sqrt(px * px + py * py);
+    float rho = sqrt(px * px + py * py);
     float phi = atan2(py, px);
-    float ro_dot;
-    if (fabs(ro) < 0.0001) {
-        ro_dot = 0;
+    float rho_dot;
+    if (fabs(rho) < 0.0001) {
+        rho_dot = 0;
     } else {
-        ro_dot = (px * vy + py * vx) / ro;
+        rho_dot = (px * vx + py * vy) / rho;
     }
 
     VectorXd z_pred(3);
-    z_pred << ro, phi, ro_dot;
+    z_pred << rho, phi, rho_dot;
 
-    UpdateWithZPred(z, z_pred);
+    VectorXd y = z - z_pred;
+    y(1) = normalizePhi(y(1));
+    MatrixXd Ht = H_.transpose();
+    MatrixXd S = H_ * P_ * Ht + R_;
+    MatrixXd Si = S.inverse();
+    MatrixXd K = P_ * Ht * Si;
+
+    x_ = x_ + (K * y);
+    long x_size = x_.size();
+    MatrixXd I = MatrixXd::Identity(x_size, x_size);
+    P_ = (I - K * H_) * P_;
 
 }

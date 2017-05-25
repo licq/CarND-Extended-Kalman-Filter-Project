@@ -65,9 +65,6 @@ public:
      */
     void UpdateEKF(const Eigen::VectorXd &z);
 
-
-    void UpdateWithZPred(const Eigen::VectorXd &z, const Eigen::VectorXd &z_pred);
-
 };
 
 #endif /* KALMAN_FILTER_H_ */
